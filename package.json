@@ -25,5 +25,7 @@
     },
     "platforms": []
   },
-  "dependencies": {}
+  "dependencies": {
+    "html-entities": "^1.3.1"
+  }
 }

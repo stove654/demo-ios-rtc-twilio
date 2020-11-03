@@ -21,8 +21,9 @@
 // See https://cordova.apache.org/docs/en/latest/cordova/events/events.html#deviceready
 var isCordova = !document.URL.includes('http');
 var twilioVideoUrl = "https://media.twiliocdn.com/sdk/js/video/releases/2.7.2/twilio-video.js";
-var tokenTwilioVideoCall = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTSzg3NTU5NmQ1MDE4ODVmZTk2MTUyNmY5MzUwN2E2NTE2LTE2MDQzNzQwNjQiLCJpc3MiOiJTSzg3NTU5NmQ1MDE4ODVmZTk2MTUyNmY5MzUwN2E2NTE2Iiwic3ViIjoiQUNlMDM5NGRiMWUwOGI1Y2MwODU4NGQzOTJjZmYzM2E2OSIsImV4cCI6MTYwNDM3NzY2NCwiZ3JhbnRzIjp7ImlkZW50aXR5IjoidGVzdGxvaTExMSIsInZpZGVvIjp7InJvb20iOiJ0ZXNsb2kxMDEifX19.fdHnKbDSXmPOG1J9DeZPgyTOXOoJBORES6QJuhqpDPI"
+var tokenTwilioVideoCall = ""
 var roomName = 'testloi101'
+var urlGetToken = "http://13.250.33.181:3000/api/users/token?identity=" +  Math.random().toString(36).substring(7)
 
 if (!isCordova) {
     loadScript(twilioVideoUrl, function () {
@@ -47,7 +48,6 @@ function onDeviceReady() {
     // Cordova is now initialized. Have fun!
 
     console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
-    document.getElementById('deviceready').classList.add('ready');
 
     if (window.cordova) {
         window.cordova.plugins.iosrtc.registerGlobals()
@@ -62,15 +62,51 @@ function onDeviceReady() {
 function _initWebrtc (){
     var Video = Twilio.Video;
 
-    Video.connect(tokenTwilioVideoCall, { name:  roomName}).then(room => {
-        console.log('Connected to Room "%s"', room.name);
-      
-        room.participants.forEach(participantConnected);
-        room.on('participantConnected', participantConnected);
-      
-        room.on('participantDisconnected', participantDisconnected);
-        room.once('disconnected', error => room.participants.forEach(participantDisconnected));
-    });  
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            console.log(this.responseText)
+            tokenTwilioVideoCall = JSON.parse(this.responseText).token
+
+            Video.createLocalTracks().then(tracks => {
+                var stream = new MediaStream()
+
+                var localMediaContainer = document.getElementById('local-stream');
+                console.log('localMediaContainer', localMediaContainer)
+                tracks.forEach(function(track) {
+                    stream.addTrack(track.mediaStreamTrack)
+                });
+
+                var elLocal = document.getElementById("local-video")
+                elLocal.srcObject = stream;
+                elLocal.volume = 0;
+                try {
+                    elLocal.setAttributeNode(document.createAttribute('muted'));
+                } catch (e) {
+                    elLocal.setAttribute('muted', true);
+                }
+                console.log('elLocal', elLocal)
+                elLocal.play();
+                
+                Video.connect(tokenTwilioVideoCall, { name:  roomName}).then(room => {
+                    console.log('Connected to Room "%s"', room.name);
+                  
+                    room.participants.forEach(participantConnected);
+                    room.on('participantConnected', participantConnected);
+                  
+                    room.on('participantDisconnected', participantDisconnected);
+                    room.once('disconnected', error => room.participants.forEach(participantDisconnected));
+                });
+
+                if (window.cordova) {
+                    console.log(2222323232)
+                    cordova.plugins.iosrtc.refreshVideos();
+                }
+            });
+        }
+    };
+    xhttp.open("GET", urlGetToken, true);
+    xhttp.send();
 }
 
 function participantConnected(participant) {
@@ -90,6 +126,9 @@ function participantConnected(participant) {
     });
   
     document.body.appendChild(div);
+    if (window.cordova) {
+        cordova.plugins.iosrtc.refreshVideos();
+    }
 }
   
 function participantDisconnected(participant) {
