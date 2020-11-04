@@ -27,7 +27,7 @@ body {
     background-color: transparent;
 }
 
-video {
+#remote-video {
     position: fixed;
     top: 0;
     left: 0;

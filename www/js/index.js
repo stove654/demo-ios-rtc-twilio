@@ -88,7 +88,12 @@ function _initWebrtc (){
                 console.log('elLocal', elLocal)
                 elLocal.play();
                 
-                Video.connect(tokenTwilioVideoCall, { name:  roomName}).then(room => {
+                Video.connect(tokenTwilioVideoCall, {
+                    tracks: tracks,
+                    name: roomName,
+                    sdpSemantics: 'plan-b', // This is the line
+                    bundlePolicy: 'max-compat'
+                }).then(room => {
                     console.log('Connected to Room "%s"', room.name);
                   
                     room.participants.forEach(participantConnected);
@@ -110,22 +115,55 @@ function _initWebrtc (){
 }
 
 function participantConnected(participant) {
-    console.log('Participant "%s" connected', participant.identity);
+
+    setTimeout(() => {
+
+        var stream = new MediaStream()
+        participant.tracks.forEach(function(pub) {
+            console.log(22222222222222, pub.isSubscribed)
+
+            if (pub.isSubscribed) {
+                console.log(22222222222222)
+                console.log('track.mediaStreamTrack', pub.track)
+                stream.addTrack(pub.track.mediaStreamTrack)
+            }
+        });
+
+
+        var elRemote = document.getElementById("remote-video")
+        elRemote.srcObject = stream;
+        elRemote.volume = 0;
+        try {
+            elRemote.setAttributeNode(document.createAttribute('muted'));
+        } catch (e) {
+            elRemote.setAttribute('muted', true);
+        }
+
+        if (window.cordova) {
+            console.log('run cordova')
+            cordova.plugins.iosrtc.refreshVideos();
+        }
+
+    }, 5000)
+
+    
+
+    // console.log('Participant "%s" connected', participant.identity, participant.tracks);
   
-    const div = document.createElement('div');
-    div.id = participant.sid;
-    div.innerText = participant.identity;
+    // const div = document.createElement('div');
+    // div.id = participant.sid;
+    // div.innerText = participant.identity;
   
-    participant.on('trackSubscribed', track => trackSubscribed(div, track));
-    participant.on('trackUnsubscribed', trackUnsubscribed);
+    // participant.on('trackSubscribed', track => trackSubscribed(div, track));
+    // participant.on('trackUnsubscribed', trackUnsubscribed);
   
-    participant.tracks.forEach(publication => {
-      if (publication.isSubscribed) {
-        trackSubscribed(div, publication.track);
-      }
-    });
+    // participant.tracks.forEach(publication => {
+    //   if (publication.isSubscribed) {
+    //     trackSubscribed(div, publication.track);
+    //   }
+    // });
   
-    document.body.appendChild(div);
+    // document.body.appendChild(div);
     if (window.cordova) {
         cordova.plugins.iosrtc.refreshVideos();
     }
@@ -133,7 +171,7 @@ function participantConnected(participant) {
   
 function participantDisconnected(participant) {
     console.log('Participant "%s" disconnected', participant.identity);
-    document.getElementById(participant.sid).remove();
+    // document.getElementById(participant.sid).remove();
 }
 
 function trackSubscribed(div, track) {
